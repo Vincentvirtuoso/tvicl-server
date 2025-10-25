@@ -79,7 +79,7 @@ const createTransporter = async () => {
 })();
 
 // Helpers: templates
-const BRAND_COLOR = "#25aff3";
+const BRAND_COLOR = "#facc15";
 
 const generateVerificationHtml = ({ fullName, verificationUrl, company = FROM_NAME }) => {
   return `
@@ -138,45 +138,38 @@ const generateVerificationHtml = ({ fullName, verificationUrl, company = FROM_NA
 const generateVerificationText = ({ fullName, verificationUrl }) => {
   return `Hello ${fullName},
 
-Please verify your TVICL account by visiting the link below:
-${verificationUrl}
+  Please verify your TVICL account by visiting the link below:
+  ${verificationUrl}
 
-This link will expire in 24 hours.
+  This link will expire in 24 hours.
 
-If you did not register, you can ignore this message.
-`;
+  If you did not register, you can ignore this message.
+  `;
 };
 
-// sendEmail wrapper
 export const sendEmail = async ({ to, subject, html, text }) => {
-  if (!transporter) {
-    // transporter creation failed earlier
-    throw new Error("Email transporter is not initialized");
-  }
-
-  const mailOptions = {
-    from: `"${FROM_NAME}" <${EMAIL_USER || "no-reply@example.com"}>`,
-    to,
-    subject,
-    text,
-    html,
-  };
-
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail({
+      from: `"${process.env.FROM_NAME}" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
 
-    // If using ethereal, provide preview URL in logs
-    if (usingTestAccount && nodemailer.getTestMessageUrl(info)) {
-      console.log("📨 Preview email URL:", nodemailer.getTestMessageUrl(info));
-    }
-
-    return info;
-  } catch (err) {
-    // rethrow with more context
-    console.error("Email sending error:", err);
-    throw err;
+    console.log("✅ Email sent:", info.messageId);
+    return { success: true };
+  } catch (error) {
+    console.error("❌ Email failed:", error.message);
+    console.error("SMTP CONFIG:", {
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      user: process.env.EMAIL_USER,
+    });
+    return { success: false, error: error.message };
   }
 };
+
 
 // exports for verification email specifically
 export const sendVerificationEmail = async ({ to, fullName, verificationUrl }) => {

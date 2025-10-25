@@ -68,7 +68,7 @@ export const register = async (req, res) => {
 
     try {
       emailInfo = await sendVerificationEmail({
-        to: user.email,
+        to: email,
         fullName: user.fullName,
         verificationUrl,
       });
@@ -171,7 +171,7 @@ export const resendVerificationEmail = async (req, res) => {
 
     // Send verification email
     const verificationUrl = `${CLIENT_URL}/auth/verify-email/${verificationToken}`;
-    await sendVerificationEmail(user.email, user.fullName, verificationUrl);
+    await sendVerificationEmail({to: user.email, fullName: user.fullName, verificationUrl});
 
     res.json({ message: "Verification email sent successfully" });
   } catch (err) {

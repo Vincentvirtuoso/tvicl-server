@@ -10,6 +10,7 @@ import createError from "http-errors";
 import "express-async-errors";
 import connectDB from "#config/db";
 import authRoutes from "#routes/auth.routes";
+import {sendEmail} from "#utils/sendEmail";
 
 // Load environment variables
 dotenv.config();

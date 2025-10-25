@@ -12,25 +12,26 @@ const {
   NODE_ENV,
 } = process.env;
 
-let transporter;
+// let transporter;
 let usingTestAccount = false;
 
 const createTransporter = async () => {
   // Priority 1: explicit SMTP host+port provided
   if (EMAIL_HOST && EMAIL_PORT && EMAIL_USER && EMAIL_PASS) {
     return nodemailer.createTransport({
-      host: EMAIL_HOST,
-      port: Number(EMAIL_PORT),
-      secure: Number(EMAIL_PORT) === 465, // true for 465, false for other ports (587)
-      auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS,
-      },
-      tls: {
-        // better compatibility on some hosts
-        rejectUnauthorized: false,
-      },
-    });
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  logger: true, // ✅ log SMTP activity
+  debug: true,  // ✅ include SMTP traffic in logs
+});
   }
 
   // Priority 2: service via Gmail credentials (common case)
@@ -62,7 +63,14 @@ const createTransporter = async () => {
 // Immediately initialize transporter (async)
 (async () => {
   try {
-    transporter = await createTransporter();
+      const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // Gmail App Password REQUIRED
+      },
+    });
+
     transporter.verify((err, success) => {
       if (err) {
         console.error("⚠️ SMTP verify failed:", err);

@@ -9,7 +9,7 @@ import {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const { CLIENT_URL = "http://localhost:5173", NODE_ENV } = process.env;
 
 // Generate access token (15 minutes)
 const generateToken = (user) => {
@@ -48,7 +48,7 @@ export const register = async (req, res) => {
     // Create verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
-    // Create new user
+    // Create new user (assuming pre-save hook hashes password)
     const user = await User.create({
       fullName,
       email,
@@ -59,22 +59,41 @@ export const register = async (req, res) => {
       verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
     });
 
-    // Send verification email
-    const verificationUrl = `${CLIENT_URL}/verify-email/${verificationToken}`;
-    await sendVerificationEmail(user.email, user.fullName, verificationUrl);
+    // Build verification URL
+    const verificationUrl = `${CLIENT_URL.replace(/\/$/, "")}/verify-email/${verificationToken}`;
 
-    res.status(201).json({
-      message:
-        "Registration successful! Please check your email to verify your account.",
+    // Attempt to send verification email, but do not crash if email fails
+    let emailSent = true;
+    let emailInfo = null;
+
+    try {
+      emailInfo = await sendVerificationEmail({
+        to: user.email,
+        fullName: user.fullName,
+        verificationUrl,
+      });
+      // If ethereal, nodemailer.test URL will be in logs due to service
+    } catch (emailErr) {
+      emailSent = false;
+      console.error("⚠️ Verification email failed to send:", emailErr);
+    }
+
+    // Respond 201 regardless; include emailSent flag for client-side UX
+    return res.status(201).json({
+      message: emailSent
+        ? "Registration successful! Please check your email to verify your account."
+        : "Registration successful, but we couldn't send the verification email. Please contact support or request a resend.",
       user: {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
       },
+      emailSent,
+      ...(NODE_ENV !== "production" && { emailInfo }),
     });
   } catch (err) {
-    console.error("Registration error:", err);
-    res.status(500).json({ message: "Server error during registration" });
+    console.error("Registration error:", err.stack || err);
+    return res.status(500).json({ message: "Server error during registration" });
   }
 };
 

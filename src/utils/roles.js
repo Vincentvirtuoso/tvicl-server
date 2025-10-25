@@ -1,0 +1,1 @@
+export const ROLES={BUYER:'buyer',AGENT:'agent',AGENCY:'agency'}

@@ -16,7 +16,7 @@ const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const FROM_EMAIL = "michaelnwode023@gmail.com"; 
 const BRAND_COLOR = "#facc15";
-const APP_NAME = "TVICL Real Estate";
+const APP_NAME = "TVICL";
 
 // ========================= GENERIC SEND FUNCTION =========================
 export const sendEmail = async ({ to, subject, html, text }) => {

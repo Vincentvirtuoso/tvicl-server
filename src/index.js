@@ -39,6 +39,22 @@ app.use(
   })
 );
 
+app.get("/test-email", async (req, res) => {
+  try {
+    const result = await sendEmail({
+      to: "felixnwode023@gmail.com",
+      subject: "Render Test",
+      html: "<h2>Hello from Render + Brevo ✅</h2>",
+      text: "Test email"
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("Email Test Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 app.options("*", cors());
 app.use(helmet());
 app.use(express.json({ limit: "10mb" }));

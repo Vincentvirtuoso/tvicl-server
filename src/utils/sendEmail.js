@@ -187,7 +187,66 @@ export const sendVerificationEmail = async ({ to, fullName, verificationUrl }) =
   return sendEmail({ to, subject, html, text });
 };
 
-export  {
-  sendEmail,
-  sendVerificationEmail,
+// ========================= PASSWORD RESET EMAIL =========================
+
+const generatePasswordResetHtml = ({ fullName, resetUrl, company = FROM_NAME }) => {
+  return `
+  <!doctype html>
+  <html>
+    <body style="font-family: system-ui, Arial; background:#f6f9fc; padding:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td align="center">
+          <table width="600" style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.08);">
+            <tr>
+              <td style="background:${BRAND_COLOR};padding:20px 28px;color:white;">
+                <h2 style="margin:0;">${company}</h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <h3>Hello ${fullName},</h3>
+                <p>We received a request to reset your account password. Click the button below to create a new password:</p>
+                <p style="text-align:center;margin:26px 0;">
+                  <a href="${resetUrl}" style="background:${BRAND_COLOR};color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">
+                    Reset Password
+                  </a>
+                </p>
+                <p>If the button doesn’t work, copy and paste this link:</p>
+                <p><a href="${resetUrl}" style="color:${BRAND_COLOR};word-break:break-all;">${resetUrl}</a></p>
+                <p>This link will expire in 1 hour.</p>
+                <p>If you didn’t request a password reset, please ignore this email.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#fafafa;padding:16px;text-align:center;font-size:12px;color:#999;">
+                ${company} • Secure Account Service
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+  </html>
+  `;
 };
+
+const generatePasswordResetText = ({ fullName, resetUrl }) => {
+  return `Hello ${fullName},
+
+You requested a password reset.
+
+Reset your password here: ${resetUrl}
+
+This link expires in 1 hour. If you didn’t request this, ignore this email.
+`;
+};
+
+export const sendPasswordResetEmail = async ({ to, fullName, resetUrl }) => {
+  return sendEmail({
+    to,
+    subject: "Reset Your Password – TVICL",
+    html: generatePasswordResetHtml({ fullName, resetUrl }),
+    text: generatePasswordResetText({ fullName, resetUrl }),
+  });
+};
+

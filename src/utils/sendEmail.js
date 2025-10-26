@@ -48,23 +48,37 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 export const sendVerificationEmail = async ({ to, fullName, verificationUrl }) => {
   const subject = "Verify your TVICL account";
   const html = `
-    <div style="font-family: Arial, sans-serif; padding: 24px; background: #f4f4f4;">
-      <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; overflow: hidden;">
-        <div style="background: ${BRAND_COLOR}; padding: 20px; color: black; font-weight: bold;">
-          ${APP_NAME}
-        </div>
-        <div style="padding: 24px;">
-          <h2>Hello ${fullName},</h2>
-          <p>Please verify your email using the button below:</p>
-          <a href="${verificationUrl}" 
-            style="display: inline-block; background: ${BRAND_COLOR}; padding: 10px 18px; color: black; border-radius: 6px; text-decoration: none;">
-            Verify Email
-          </a>
-          <p>This link expires in 24 hours.</p>
-        </div>
-      </div>
-    </div>
-  `;
+<table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f8f8f8; padding: 40px 0;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="background-color: ${BRAND_COLOR}; padding: 20px; text-align: center; color: #000; font-size: 24px; font-weight: bold;">
+            ${APP_NAME}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px; color: #333; font-size: 16px; line-height: 1.6;">
+            <p>Hello <strong>${fullName}</strong>,</p>
+            <p>Thank you for creating an account with ${APP_NAME}. To complete your registration and secure your account, please verify your email by clicking the button below:</p>
+            <p style="text-align: center; margin: 30px 0;">
+              <a href="${verificationUrl}" style="background-color: ${BRAND_COLOR}; color: #000; font-weight: bold; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block;">
+                Verify Your Email
+              </a>
+            </p>
+            <p>This verification link will expire in 24 hours. If you did not create this account, please ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+            <p style="font-size: 12px; color: #888; text-align: center;">
+              Need help? Contact our support team at <a href="mailto:support@tvicl.com" style="color: ${BRAND_COLOR}; text-decoration: none;">support@tvicl.com</a><br/>
+              &copy; ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+`;
   const text = `Hello ${fullName}, verify your account: ${verificationUrl}`;
   return sendEmail({ to, subject, html, text });
 };
@@ -73,23 +87,37 @@ export const sendVerificationEmail = async ({ to, fullName, verificationUrl }) =
 export const sendPasswordResetEmail = async ({ to, fullName, resetUrl }) => {
   const subject = "Reset your TVICL password";
   const html = `
-    <div style="font-family: Arial, sans-serif; padding: 24px; background: #f4f4f4;">
-      <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; overflow: hidden;">
-        <div style="background: ${BRAND_COLOR}; padding: 20px; color: black; font-weight: bold;">
-          ${APP_NAME}
-        </div>
-        <div style="padding: 24px;">
-          <h2>Hello ${fullName},</h2>
-          <p>To reset your TVICL password, click below:</p>
-          <a href="${resetUrl}" 
-            style="display: inline-block; background: ${BRAND_COLOR}; padding: 10px 18px; color: black; border-radius: 6px; text-decoration: none;">
-            Reset Password
-          </a>
-          <p>This link expires in 1 hour.</p>
-        </div>
-      </div>
-    </div>
-  `;
+<table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f8f8f8; padding: 40px 0;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="background-color: ${BRAND_COLOR}; padding: 20px; text-align: center; color: #000; font-size: 24px; font-weight: bold;">
+            ${APP_NAME}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px; color: #333; font-size: 16px; line-height: 1.6;">
+            <p>Hello <strong>${fullName}</strong>,</p>
+            <p>We received a request to reset your password. Click the button below to set a new password for your ${APP_NAME} account:</p>
+            <p style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" style="background-color: ${BRAND_COLOR}; color: #000; font-weight: bold; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block;">
+                Reset Password
+              </a>
+            </p>
+            <p>This link will expire in 1 hour. If you did not request a password reset, please ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+            <p style="font-size: 12px; color: #888; text-align: center;">
+              Need help? Contact our support team at <a href="mailto:support@tvicl.com" style="color: ${BRAND_COLOR}; text-decoration: none;">support@tvicl.com</a><br/>
+              &copy; ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+`;
   const text = `Hello ${fullName}, reset password link: ${resetUrl}`;
   return sendEmail({ to, subject, html, text });
 };

@@ -11,6 +11,7 @@ import {
   getCurrentUser,
   updateProfile,
   changePassword,
+  updateUserRole,
 } from "../controllers/auth.controller.js";
 
 import { protect, authorize } from "../middleware/auth.middleware.js";
@@ -36,6 +37,8 @@ router.post("/reset-password/:token", resetPassword);
 router.get("/me", protect, getCurrentUser);
 
 router.put("/profile", protect, updateProfile);
+
+router.patch("/role", protect, updateUserRole);
 
 router.put("/change-password", protect, changePassword);
 

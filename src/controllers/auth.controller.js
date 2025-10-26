@@ -1,5 +1,7 @@
 // controllers/auth.controller.js
 import User from "#models/User";
+import "#models/Property"; 
+
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import {
@@ -23,10 +25,10 @@ const generateRefreshToken = (user) => {
   return jwt.sign({ id: user._id }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 
-// ========================= REGISTER =========================
+
 export const register = async (req, res) => {
   try {
-    const { fullName, email, password, phone, role } = req.body;
+    const { fullName, email, password, phone, roles } = req.body;
 
     // Validate input
     if (!fullName || !email || !password || !phone) {
@@ -48,13 +50,18 @@ export const register = async (req, res) => {
     // Create verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
-    // Create new user (assuming pre-save hook hashes password)
+    // Ensure at least one role
+    const userRoles = Array.isArray(roles) && roles.length > 0 ? roles : ["buyer"];
+    const activeRole = userRoles[0]; // first role is active by default
+
+    // Create new user (pre-save hook hashes password)
     const user = await User.create({
       fullName,
       email,
       password,
       phone,
-      role: role || "buyer",
+      roles: userRoles,
+      activeRole,
       verificationToken,
       verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
     });
@@ -62,7 +69,7 @@ export const register = async (req, res) => {
     // Build verification URL
     const verificationUrl = `${CLIENT_URL.replace(/\/$/, "")}/verify-email/${verificationToken}`;
 
-    // Attempt to send verification email, but do not crash if email fails
+    // Attempt to send verification email, but don't crash if it fails
     let emailSent = true;
     let emailInfo = null;
 
@@ -72,7 +79,6 @@ export const register = async (req, res) => {
         fullName: user.fullName,
         verificationUrl,
       });
-      // If ethereal, nodemailer.test URL will be in logs due to service
     } catch (emailErr) {
       emailSent = false;
       console.error("⚠️ Verification email failed to send:", emailErr);
@@ -87,6 +93,8 @@ export const register = async (req, res) => {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
+        roles: user.roles,
+        activeRole: user.activeRole,
       },
       emailSent,
       ...(NODE_ENV !== "production" && { emailInfo }),
@@ -97,7 +105,7 @@ export const register = async (req, res) => {
   }
 };
 
-// ========================= VERIFY EMAIL =========================
+
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
@@ -143,7 +151,6 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-// ========================= RESEND VERIFICATION EMAIL =========================
 export const resendVerificationEmail = async (req, res) => {
   try {
     const { email } = req.body;
@@ -180,7 +187,6 @@ export const resendVerificationEmail = async (req, res) => {
   }
 };
 
-// ========================= LOGIN =========================
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -204,10 +210,9 @@ export const login = async (req, res) => {
       return res.status(401).json({
         message: "Please verify your email before logging in",
         requiresVerification: true,
-        email: user.email,  // <-- helpful for resend
+        email: user.email, // useful for resend
       });
     }
-
 
     // Verify password
     const isMatch = await user.matchPassword(password);
@@ -243,12 +248,12 @@ export const login = async (req, res) => {
           fullName: user.fullName,
           email: user.email,
           phone: user.phone,
-          role: user.role,
+          roles: user.roles,          // updated to array
+          activeRole: user.activeRole, // active role
           profilePhoto: user.profilePhoto,
-          verified: user.verified, 
+          verified: user.verified,
           savedPropertiesCount,
         },
-
       });
   } catch (err) {
     console.error("Login error:", err);
@@ -256,7 +261,6 @@ export const login = async (req, res) => {
   }
 };
 
-// ========================= REFRESH TOKEN =========================
 export const refreshToken = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
@@ -311,7 +315,6 @@ export const refreshToken = async (req, res) => {
   }
 };
 
-// ========================= LOGOUT =========================
 export const logout = (req, res) => {
   try {
     res
@@ -332,7 +335,6 @@ export const logout = (req, res) => {
   }
 };
 
-// ========================= FORGOT PASSWORD =========================
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -373,7 +375,6 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// ========================= RESET PASSWORD =========================
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -420,7 +421,6 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// ========================= GET CURRENT USER =========================
 export const getCurrentUser = async (req, res) => {
   try {
     // req.user is set by auth middleware
@@ -453,7 +453,6 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
-// ========================= UPDATE PROFILE =========================
 export const updateProfile = async (req, res) => {
   try {
     const { fullName, phone, profilePhoto } = req.body;
@@ -490,7 +489,6 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// ========================= CHANGE PASSWORD =========================
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -530,5 +528,41 @@ export const changePassword = async (req, res) => {
   } catch (err) {
     console.error("Change password error:", err);
     res.status(500).json({ message: "Server error during password change" });
+  }
+};
+
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role, makeActive } = req.body; // role to add or set as active
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Add role if not already present
+    if (role && !user.roles.includes(role)) {
+      user.roles.push(role);
+    }
+
+    // Set active role
+    if (makeActive) {
+      if (!user.roles.includes(makeActive)) {
+        return res.status(400).json({ message: "Cannot set active role that user doesn't have" });
+      }
+      user.activeRole = makeActive;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Roles updated successfully",
+      roles: user.roles,
+      activeRole: user.activeRole,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

@@ -27,15 +27,19 @@ export const protect = async (req, res, next) => {
 };
 
 export const authorize =
-  (...roles) =>
+  (...allowedRoles) =>
   (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    if (!roles.includes(req.user.role)) {
+    const hasRole = req.user.roles?.some(role => allowedRoles.includes(role));
+
+    if (!hasRole) {
       return res.status(403).json({ message: "Forbidden: Insufficient role" });
     }
 
     next();
   };
+
+

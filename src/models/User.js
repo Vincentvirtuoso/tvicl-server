@@ -25,11 +25,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    role: {
+
+    // Multi-role support
+    roles: {
+      type: [String],
+      enum: ["buyer", "seller", "agent", "admin", "estate"],
+      default: ["buyer"],
+    },
+
+    // Active role for hybrid approach
+    activeRole: {
       type: String,
-      enum: ["buyer", "seller", "agent", "admin"],
+      enum: ["buyer", "seller", "agent", "admin", "estate"],
       default: "buyer",
     },
+
     profilePhoto: {
       type: String, // URL or path to image
       default: "",
@@ -44,12 +54,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    verificationToken:{
-type:String,default:null,
+    verificationToken: {
+      type: String,
+      default: null,
     },
     verificationTokenExpires: {
       type: Date,
-      default:null,
+      default: null,
     },
     resetPasswordToken: String,
     resetPasswordExpires: Date,
@@ -71,6 +82,24 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+userSchema.methods.hasRole = function (role) {
+  return this.roles.includes(role);
+};
+
+userSchema.pre("save", function (next) {
+  if (
+    this.verified &&
+    this.verificationToken &&
+    this.verificationTokenExpires &&
+    this.verificationTokenExpires < new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  ) {
+    this.verificationToken = null;
+    this.verificationTokenExpires = null;
+  }
+  next();
+});
+
 
 const User = mongoose.model("User", userSchema);
 

@@ -11,6 +11,8 @@ import "express-async-errors";
 import connectDB from "#config/db";
 import authRoutes from "#routes/auth.routes";
 import {sendEmail} from "#utils/sendEmail";
+import User from "./models/User.js";
+
 
 // Load environment variables
 dotenv.config();

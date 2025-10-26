@@ -129,7 +129,7 @@ export const verifyEmail = async (req, res) => {
 
     // ✅ Verify email
     user.verified = true;
-    user.verificationToken = undefined;
+    // user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();
 

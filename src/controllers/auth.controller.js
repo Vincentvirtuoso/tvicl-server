@@ -438,13 +438,17 @@ export const getCurrentUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    const roles = Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
+    const activeRole = user.activeRole || roles[0];
+
     res.json({
       user: {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        roles,
+        activeRole,
         profilePhoto: user.profilePhoto,
         savedProperties: user.savedProperties,
         verified: user.verified,

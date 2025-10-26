@@ -1,7 +1,8 @@
 // controllers/auth.controller.js
 import User from "#models/User";
-import "#models/Property"; 
-
+import "#models/Property";
+import Agent from "#models/Agent";
+import Estate from "#models/Estate";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import {
@@ -24,7 +25,6 @@ const generateToken = (user) => {
 const generateRefreshToken = (user) => {
   return jwt.sign({ id: user._id }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
-
 
 export const register = async (req, res) => {
   try {
@@ -51,7 +51,8 @@ export const register = async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
     // Ensure at least one role
-    const userRoles = Array.isArray(roles) && roles.length > 0 ? roles : ["buyer"];
+    const userRoles =
+      Array.isArray(roles) && roles.length > 0 ? roles : ["buyer"];
     const activeRole = userRoles[0]; // first role is active by default
 
     // Create new user (pre-save hook hashes password)
@@ -67,7 +68,10 @@ export const register = async (req, res) => {
     });
 
     // Build verification URL
-    const verificationUrl = `${CLIENT_URL.replace(/\/$/, "")}verify-email/${verificationToken}`;
+    const verificationUrl = `${CLIENT_URL.replace(
+      /\/$/,
+      ""
+    )}/verify-email/${encodeURIComponent(verificationToken)}`;
 
     // Attempt to send verification email, but don't crash if it fails
     let emailSent = true;
@@ -101,10 +105,11 @@ export const register = async (req, res) => {
     });
   } catch (err) {
     console.error("Registration error:", err.stack || err);
-    return res.status(500).json({ message: "Server error during registration" });
+    return res
+      .status(500)
+      .json({ message: "Server error during registration" });
   }
 };
-
 
 export const verifyEmail = async (req, res) => {
   try {
@@ -130,7 +135,8 @@ export const verifyEmail = async (req, res) => {
     // ✅ Check if token is expired
     if (user.verificationTokenExpires < Date.now()) {
       return res.status(400).json({
-        message: "Verification link has expired. Please request a new verification email.",
+        message:
+          "Verification link has expired. Please request a new verification email.",
         expired: true,
       });
     }
@@ -177,8 +183,16 @@ export const resendVerificationEmail = async (req, res) => {
     await user.save();
 
     // Send verification email
-    const verificationUrl = `${CLIENT_URL}verify-email/${verificationToken}`;
-    await sendVerificationEmail({to: user.email, fullName: user.fullName, verificationUrl});
+    const verificationUrl = `${CLIENT_URL.replace(
+      /\/$/,
+      ""
+    )}/verify-email/${encodeURIComponent(verificationToken)}`;
+
+    await sendVerificationEmail({
+      to: user.email,
+      fullName: user.fullName,
+      verificationUrl,
+    });
 
     res.json({ message: "Verification email sent successfully" });
   } catch (err) {
@@ -193,7 +207,9 @@ export const login = async (req, res) => {
 
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
     // Find user
@@ -219,7 +235,8 @@ export const login = async (req, res) => {
     }
 
     // Ensure roles and activeRole are defined
-    const roles = Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
+    const roles =
+      Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
     const activeRole = user.activeRole || roles[0];
 
     // Generate tokens
@@ -227,7 +244,9 @@ export const login = async (req, res) => {
     const refreshToken = generateRefreshToken(user);
 
     // Saved properties count
-    const savedPropertiesCount = Array.isArray(user.savedProperties) ? user.savedProperties.length : 0;
+    const savedPropertiesCount = Array.isArray(user.savedProperties)
+      ? user.savedProperties.length
+      : 0;
 
     // Send tokens as HTTP-only cookies
     res
@@ -263,7 +282,6 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "Server error during login" });
   }
 };
-
 
 export const refreshToken = async (req, res) => {
   try {
@@ -438,7 +456,8 @@ export const getCurrentUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const roles = Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
+    const roles =
+      Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
     const activeRole = user.activeRole || roles[0];
 
     res.json({
@@ -458,6 +477,56 @@ export const getCurrentUser = async (req, res) => {
   } catch (err) {
     console.error("Get current user error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const addProfile = async (req, res, next) => {
+  try {
+    const { userId } = req.user._id;
+    const { role, profileData } = req.body;
+
+    // Validate role
+    if (!["agent", "estate"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Prevent duplicate profile
+    if (user.roles.includes(role)) {
+      return res
+        .status(400)
+        .json({ message: `${role} profile already exists` });
+    }
+
+    let profileRef;
+    if (role === "agent") {
+      const agentProfile = new Agent({ ...profileData, user: user._id });
+      await agentProfile.save();
+      profileRef = agentProfile._id;
+    } else if (role === "estate") {
+      const estateProfile = new Estate({ ...profileData, user: user._id });
+      await estateProfile.save();
+      profileRef = estateProfile._id;
+    }
+
+    user.roles.push(role);
+    user.rolesData.push({ role, profile: profileRef });
+    await user.save();
+
+    res.status(200).json({
+      message: `${role} profile added successfully`,
+      roles: user.roles,
+      user,
+    });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong", error: err.message });
   }
 };
 
@@ -557,7 +626,9 @@ export const updateUserRole = async (req, res) => {
     // Set active role
     if (makeActive) {
       if (!user.roles.includes(makeActive)) {
-        return res.status(400).json({ message: "Cannot set active role that user doesn't have" });
+        return res
+          .status(400)
+          .json({ message: "Cannot set active role that user doesn't have" });
       }
       user.activeRole = makeActive;
     }

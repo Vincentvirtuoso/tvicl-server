@@ -12,9 +12,12 @@ import {
   updateProfile,
   changePassword,
   updateUserRole,
-} from "../controllers/auth.controller.js";
+  addProfile,
+} from "#controllers/auth.controller";
 
 import { protect, authorize } from "../middleware/auth.middleware.js";
+import { updateAgentProfile } from "#controllers/agent.controller";
+import { updateEstateProfile } from "#controllers/estate.controller";
 
 const router = express.Router();
 
@@ -37,6 +40,12 @@ router.post("/reset-password/:token", resetPassword);
 router.get("/me", protect, getCurrentUser);
 
 router.put("/profile", protect, updateProfile);
+
+router.post("/add-profile", protect, addProfile);
+
+router.put("/agent", protect, updateAgentProfile);
+
+router.put("/estate", protect, updateEstateProfile);
 
 router.patch("/role", protect, updateUserRole);
 

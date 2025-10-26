@@ -41,15 +41,28 @@ const userSchema = new mongoose.Schema(
     },
 
     profilePhoto: {
-      type: String, // URL or path to image
+      type: String,
       default: "",
     },
+
+    // Role-specific profile references
+    rolesData: [
+      {
+        role: { type: String, enum: ["agent", "estate"] },
+        profile: {
+          type: mongoose.Schema.Types.ObjectId,
+          refPath: "rolesData.role",
+        },
+      },
+    ],
+
     savedProperties: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Property",
       },
     ],
+
     verified: {
       type: Boolean,
       default: false,
@@ -66,7 +79,7 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: Date,
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
   }
 );
 
@@ -83,23 +96,25 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+// Check if user has a role
 userSchema.methods.hasRole = function (role) {
   return this.roles.includes(role);
 };
 
+// Auto-clear expired verification token
 userSchema.pre("save", function (next) {
   if (
     this.verified &&
     this.verificationToken &&
     this.verificationTokenExpires &&
-    this.verificationTokenExpires < new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    this.verificationTokenExpires <
+      new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
   ) {
     this.verificationToken = null;
     this.verificationTokenExpires = null;
   }
   next();
 });
-
 
 const User = mongoose.model("User", userSchema);
 

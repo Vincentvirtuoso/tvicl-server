@@ -193,9 +193,7 @@ export const login = async (req, res) => {
 
     // Validate input
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
     // Find user
@@ -210,7 +208,7 @@ export const login = async (req, res) => {
       return res.status(401).json({
         message: "Please verify your email before logging in",
         requiresVerification: true,
-        email: user.email, // useful for resend
+        email: user.email,
       });
     }
 
@@ -220,12 +218,16 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    // Ensure roles and activeRole are defined
+    const roles = Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
+    const activeRole = user.activeRole || roles[0];
+
     // Generate tokens
     const accessToken = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // Get saved properties count
-    const savedPropertiesCount = user.savedProperties?.length || 0;
+    // Saved properties count
+    const savedPropertiesCount = Array.isArray(user.savedProperties) ? user.savedProperties.length : 0;
 
     // Send tokens as HTTP-only cookies
     res
@@ -241,6 +243,7 @@ export const login = async (req, res) => {
         sameSite: "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       })
+      .status(200)
       .json({
         message: "Logged in successfully",
         user: {
@@ -248,18 +251,19 @@ export const login = async (req, res) => {
           fullName: user.fullName,
           email: user.email,
           phone: user.phone,
-          roles: user.roles,          // updated to array
-          activeRole: user.activeRole, // active role
+          roles,
+          activeRole,
           profilePhoto: user.profilePhoto,
           verified: user.verified,
           savedPropertiesCount,
         },
       });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("Login error:", err.stack || err);
     res.status(500).json({ message: "Server error during login" });
   }
 };
+
 
 export const refreshToken = async (req, res) => {
   try {

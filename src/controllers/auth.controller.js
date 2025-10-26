@@ -11,7 +11,7 @@ import {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-const { CLIENT_URL = "http://localhost:5173", NODE_ENV } = process.env;
+const { CLIENT_URL = "http://localhost:5173/", NODE_ENV } = process.env;
 
 // Generate access token (15 minutes)
 const generateToken = (user) => {
@@ -67,7 +67,7 @@ export const register = async (req, res) => {
     });
 
     // Build verification URL
-    const verificationUrl = `${CLIENT_URL.replace(/\/$/, "")}/verify-email/${verificationToken}`;
+    const verificationUrl = `${CLIENT_URL.replace(/\/$/, "")}verify-email/${verificationToken}`;
 
     // Attempt to send verification email, but don't crash if it fails
     let emailSent = true;
@@ -177,7 +177,7 @@ export const resendVerificationEmail = async (req, res) => {
     await user.save();
 
     // Send verification email
-    const verificationUrl = `${CLIENT_URL}/auth/verify-email/${verificationToken}`;
+    const verificationUrl = `${CLIENT_URL}verify-email/${verificationToken}`;
     await sendVerificationEmail({to: user.email, fullName: user.fullName, verificationUrl});
 
     res.json({ message: "Verification email sent successfully" });

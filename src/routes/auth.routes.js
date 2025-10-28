@@ -18,8 +18,19 @@ import {
 import { protect, authorize } from "../middleware/auth.middleware.js";
 import { updateAgentProfile } from "#controllers/agent.controller";
 import { updateEstateProfile } from "#controllers/estate.controller";
+import { createUpload } from "#middleware/upload.middleware";
 
 const router = express.Router();
+
+const uploadProfileFiles = createUpload(
+  [
+    { name: "profilePhoto", maxCount: 1 },
+    { name: "estateLogo", maxCount: 1 },
+    { name: "verificationDocuments", maxCount: 5 },
+    { name: "registrationDocuments", maxCount: 5 },
+  ],
+  "profiles"
+);
 
 router.post("/register", register);
 
@@ -41,7 +52,7 @@ router.get("/me", protect, getCurrentUser);
 
 router.put("/profile", protect, updateProfile);
 
-router.post("/add-profile", protect, addProfile);
+router.post("/add-profile", uploadProfileFiles, protect, addProfile);
 
 router.put("/agent", protect, updateAgentProfile);
 

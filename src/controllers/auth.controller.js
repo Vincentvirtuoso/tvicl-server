@@ -482,8 +482,15 @@ export const getCurrentUser = async (req, res) => {
 
 export const addProfile = async (req, res, next) => {
   try {
-    const { userId } = req.user._id;
-    const { role, profileData } = req.body;
+    const userId = req.user._id;
+    const { role } = req.body;
+
+    // Parse the stringified profileData from FormData
+    const profileData = JSON.parse(req.body.profileData || "{}");
+
+    console.log("Role:", role);
+    console.log("Profile data:", profileData);
+    console.log("Files:", req.files);
 
     // Validate role
     if (!["agent", "estate"].includes(role)) {
@@ -500,6 +507,14 @@ export const addProfile = async (req, res, next) => {
       return res
         .status(400)
         .json({ message: `${role} profile already exists` });
+    }
+
+    // Add file references if needed
+    if (role === "agent" && req.files?.profilePhoto) {
+      profileData.profilePhoto = req.files.profilePhoto[0].path;
+    }
+    if (role === "estate" && req.files?.estateLogo) {
+      profileData.estateLogo = req.files.estateLogo[0].path;
     }
 
     let profileRef;

@@ -327,7 +327,7 @@ export const refreshToken = async (req, res) => {
           message: "Access token refreshed successfully",
           user: {
             id: user._id,
-            role: user.role,
+            roles: user.roles,
           },
         });
     });
@@ -482,66 +482,93 @@ export const getCurrentUser = async (req, res) => {
 
 export const addProfile = async (req, res, next) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user?._id;
     const { role } = req.body;
 
-    // Parse the stringified profileData from FormData
-    const profileData = JSON.parse(req.body.profileData || "{}");
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized user" });
+    }
 
-    console.log("Role:", role);
-    console.log("Profile data:", profileData);
-    console.log("Files:", req.files);
+    // Parse FormData JSON safely
+    let profileData = {};
+    try {
+      profileData = JSON.parse(req.body.profileData || "{}");
+    } catch {
+      return res.status(400).json({ message: "Invalid profile data format" });
+    }
 
-    // Validate role
+    // ✅ Validate role type
     if (!["agent", "estate"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
 
+    // ✅ Fetch user and ensure it exists
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Prevent duplicate profile
+    // ✅ Prevent duplicate role profile
     if (user.roles.includes(role)) {
       return res
         .status(400)
         .json({ message: `${role} profile already exists` });
     }
 
-    // Add file references if needed
-    if (role === "agent" && req.files?.profilePhoto) {
-      profileData.profilePhoto = req.files.profilePhoto[0].path;
-    }
-    if (role === "estate" && req.files?.estateLogo) {
-      profileData.estateLogo = req.files.estateLogo[0].path;
+    // ✅ Handle file uploads dynamically and cleanly
+    const files = req.files || {};
+
+    if (role === "agent" && files.profilePhoto?.[0]) {
+      profileData.profilePhoto = files.profilePhoto[0].path.replace(/\\/g, "/");
     }
 
+    if (role === "estate" && files.estateLogo?.[0]) {
+      profileData.estateLogo = files.estateLogo[0].path.replace(/\\/g, "/");
+    }
+
+    if (files.verificationDocuments) {
+      profileData.verificationDocuments = files.verificationDocuments.map((f) =>
+        f.path.replace(/\\/g, "/")
+      );
+    }
+
+    if (files.registrationDocuments) {
+      profileData.registrationDocuments = files.registrationDocuments.map((f) =>
+        f.path.replace(/\\/g, "/")
+      );
+    }
+
+    // ✅ Add reference to user & save
     let profileRef;
+    let createdProfile;
+
     if (role === "agent") {
-      const agentProfile = new Agent({ ...profileData, user: user._id });
-      await agentProfile.save();
-      profileRef = agentProfile._id;
-    } else if (role === "estate") {
-      const estateProfile = new Estate({ ...profileData, user: user._id });
-      await estateProfile.save();
-      profileRef = estateProfile._id;
+      createdProfile = await Agent.create({ ...profileData, user: user._id });
+    } else {
+      createdProfile = await Estate.create({ ...profileData, user: user._id });
     }
 
+    profileRef = createdProfile._id;
+
+    // ✅ Update user roles and references
     user.roles.push(role);
     user.rolesData.push({ role, profile: profileRef });
     await user.save();
 
-    res.status(200).json({
+    // ✅ Response
+    res.status(201).json({
+      success: true,
       message: `${role} profile added successfully`,
-      roles: user.roles,
-      user,
+      profile: createdProfile,
+      userRoles: user.roles,
     });
   } catch (err) {
-    console.error(err);
-    res
-      .status(500)
-      .json({ message: "Something went wrong", error: err.message });
+    console.error("Add Profile Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong while creating profile",
+      error: err.message,
+    });
   }
 };
 
@@ -571,7 +598,7 @@ export const updateProfile = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        roles: user.roles,
         profilePhoto: user.profilePhoto,
       },
     });

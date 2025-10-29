@@ -1,7 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
 import helmet from "helmet";
-import cors from "cors";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
@@ -10,8 +9,9 @@ import createError from "http-errors";
 import "express-async-errors";
 import connectDB from "#config/db";
 import authRoutes from "#routes/auth.routes";
-import { sendEmail } from "#utils/sendEmail";
-import User from "./models/User.js";
+import agentRoutes from "#routes/agent.routes";
+import estateRoutes from "#routes/estate.routes";
+import propertyRoutes from "#routes/property.routes";
 
 dotenv.config();
 connectDB();
@@ -69,7 +69,10 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.use("/api/agent", agentRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/estate", estateRoutes);
+app.use("/api/property", propertyRoutes);
 
 app.use((req, res, next) => {
   next(createError.NotFound(`Route not found ➜ ${req.originalUrl}`));

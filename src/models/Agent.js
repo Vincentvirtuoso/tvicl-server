@@ -27,9 +27,7 @@ const agentSchema = new mongoose.Schema(
 
     // Verification
     verified: { type: Boolean, default: false },
-    verificationDocuments: [
-      { type: String }, // URLs to uploaded license, ID, etc.
-    ],
+    verificationDocuments: [{ type: String }],
 
     // Activity tracking
     active: { type: Boolean, default: true },

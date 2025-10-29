@@ -42,3 +42,28 @@ export const updateAgentProfile = async (req, res) => {
       .json({ message: "Server error during agent profile update" });
   }
 };
+
+export const getAgent = async (req, res) => {
+  try {
+    const { id } = req.user._id;
+
+    let agent = await Agent.findById(id)
+      .populate("user", "name email")
+      .populate("propertiesListed");
+
+    if (!agent) {
+      agent = await Agent.findOne({ user: id })
+        .populate("user", "name email")
+        .populate("propertiesListed");
+    }
+
+    if (!agent) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
+
+    res.status(200).json(agent);
+  } catch (error) {
+    console.error("Error fetching agent:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

@@ -41,3 +41,12 @@ export const authorize =
 
     next();
   };
+
+export const restrictToActiveRole = (role) => (req, res, next) => {
+  if (req.user.activeRole !== role) {
+    return res.status(403).json({
+      message: "Access denied — your active role does not match this section.",
+    });
+  }
+  next();
+};

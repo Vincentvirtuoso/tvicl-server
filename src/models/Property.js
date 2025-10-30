@@ -247,16 +247,38 @@ const propertySchema = new Schema(
     },
 
     // Media
-    images: [
+    media: [
       {
         url: { type: String, required: true },
-        caption: { type: String },
+        type: {
+          type: String,
+          enum: ["image", "video", "document"],
+          required: true,
+        },
+        category: {
+          type: String,
+          required: true,
+        },
+        subCategory: {
+          type: String,
+          enum: [
+            "cover",
+            "gallery",
+            "floorPlan",
+            "virtualTour",
+            "video",
+            "legal",
+            "other",
+          ],
+          required: true,
+        },
+        caption: { type: String, trim: true },
         isPrimary: { type: Boolean, default: false },
+        uploadedAt: { type: Date, default: Date.now },
       },
     ],
+
     floorPlan: { url: { type: String } },
-    virtualTourUrl: { type: String, trim: true },
-    videoUrl: { type: String, trim: true },
 
     // Nearby places
     nearbyPlaces: {
@@ -269,16 +291,18 @@ const propertySchema = new Schema(
 
     // Owner & contact
     owner: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    contactPerson: {
-      name: { type: String, required: true },
-      phone: { type: String, required: true },
-      email: { type: String, required: true },
-      role: {
-        type: String,
-        enum: ["Owner", "Agent", "Builder", "Realtor"],
-        required: true,
+    contactPerson: [
+      {
+        name: { type: String, required: true },
+        phone: { type: String, required: true },
+        email: { type: String, required: true },
+        role: {
+          type: String,
+          enum: ["Owner", "Agent", "Builder", "Realtor"],
+          required: true,
+        },
       },
-    },
+    ],
 
     // Verification & legal documents (Nigeria)
     isVerified: { type: Boolean, default: false },

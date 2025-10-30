@@ -553,6 +553,7 @@ export const addProfile = async (req, res, next) => {
     // ✅ Update user roles and references
     user.roles.push(role);
     user.rolesData.push({ role, profile: profileRef });
+    user.activeRole = role;
     await user.save();
 
     // ✅ Response

@@ -45,17 +45,11 @@ export const updateAgentProfile = async (req, res) => {
 
 export const getAgent = async (req, res) => {
   try {
-    const { id } = req.user._id;
+    const id = req.user._id.toString();
 
-    let agent = await Agent.findById(id)
+    const agent = await Agent.findOne({ user: id })
       .populate("user", "name email")
       .populate("propertiesListed");
-
-    if (!agent) {
-      agent = await Agent.findOne({ user: id })
-        .populate("user", "name email")
-        .populate("propertiesListed");
-    }
 
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });

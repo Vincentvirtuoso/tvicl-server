@@ -44,6 +44,7 @@ export const getEstateProfile = async (req, res) => {
 
     const estate = await Estate.findOne({ user: userId })
       .populate("propertiesManaged", "title price location status")
+      .populate("user", "name email")
       .lean();
 
     if (!estate) {

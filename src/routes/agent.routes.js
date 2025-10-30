@@ -7,6 +7,6 @@ const router = express.Router();
 router.use(protect);
 router.use(restrictToActiveRole("agent"));
 
-router.get("/:id", getAgent);
+router.get("/", getAgent);
 
 export default router;

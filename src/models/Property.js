@@ -270,7 +270,7 @@ const propertySchema = new Schema(
             "legal",
             "other",
           ],
-          required: true,
+          // required: true,
         },
         caption: { type: String, trim: true },
         isPrimary: { type: Boolean, default: false },

@@ -2,11 +2,76 @@ import Property from "../models/Property.js";
 import { validateProperty } from "#utils/validateProperty";
 import { handleError } from "#utils/handleError";
 import Interaction from "#models/Interaction";
+import { generateUniquePropertyId } from "#utils/helpers";
 
 // CREATE Property
 export const createProperty = async (req, res) => {
   try {
-    const { error, value } = validateProperty(req.body);
+    const files = req.files?.mediaFiles || [];
+    const mediaData = req.body.mediaData
+      ? req.body.mediaData.map((m) =>
+          typeof m === "string" ? JSON.parse(m) : m
+        )
+      : [];
+
+    const media = files.map((file, idx) => ({
+      url: file.path,
+      ...mediaData[idx],
+    }));
+
+    const parseJSON = (value, defaultValue) =>
+      typeof value === "string"
+        ? JSON.parse(value || JSON.stringify(defaultValue))
+        : value || defaultValue;
+
+    const contactPerson = parseJSON(req.body.contactPerson, []);
+    const address = parseJSON(req.body.address, {});
+    const price = parseJSON(req.body.price, {});
+    const rentalDetailsRaw = parseJSON(req.body.rentalDetails, {});
+    const paymentPlans = parseJSON(req.body.paymentPlans, []);
+    const amenities = parseJSON(req.body.amenities, []);
+
+    const rentalDetails = {
+      depositAmount: Number(rentalDetailsRaw.depositAmount) || 0,
+      rentFrequency: rentalDetailsRaw.rentFrequency || "Monthly",
+      leaseDurationMonths: Number(rentalDetailsRaw.leaseDurationMonths) || 0,
+      serviceCharge: {
+        amount: Number(rentalDetailsRaw.serviceCharge?.amount) || 0,
+        frequency: rentalDetailsRaw.serviceCharge?.frequency || "Monthly",
+      },
+      agencyFeePercent: Number(rentalDetailsRaw.agencyFeePercent) || 0,
+      cautionFee: Number(rentalDetailsRaw.cautionFee) || 0,
+      petsAllowed: rentalDetailsRaw.petsAllowed || false,
+      preferredTenants: rentalDetailsRaw.preferredTenants || "Anyone",
+    };
+
+    const propertyId = await generateUniquePropertyId(10);
+
+    const body = {
+      propertyId,
+      title: req.body.title,
+      description: req.body.description,
+      propertyType: req.body.propertyType,
+      listingType: req.body.listingType,
+      furnishingStatus: req.body.furnishingStatus,
+      propertyCondition: req.body.propertyCondition,
+      possessionStatus: req.body.possessionStatus,
+      availableFrom: req.body.availableFrom,
+      transactionType: req.body.transactionType,
+      owner: String(req.user?._id),
+      contactPerson,
+      address,
+      price,
+      media,
+      amenities,
+      rentalDetails,
+      paymentPlans,
+    };
+
+    console.log(body);
+
+    const { error, value } = validateProperty(body);
+
     if (error)
       return res.status(422).json({
         success: false,
@@ -14,11 +79,7 @@ export const createProperty = async (req, res) => {
         details: error.details.map((d) => d.message),
       });
 
-    const property = new Property({
-      ...value,
-      owner: value.owner || req.user?._id,
-    });
-
+    const property = new Property(value);
     const savedProperty = await property.save();
 
     res.status(201).json({
@@ -26,8 +87,9 @@ export const createProperty = async (req, res) => {
       message: "Property created successfully",
       data: savedProperty,
     });
-  } catch (error) {
-    handleError(res, error, 500);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 

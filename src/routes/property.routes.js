@@ -17,6 +17,7 @@ import {
   getRelatedProperties,
 } from "#controllers/property.controller";
 import { protect } from "#middleware/auth.middleware";
+import { createUpload } from "#middleware/upload.middleware";
 import { Router } from "express";
 
 const router = Router();
@@ -25,7 +26,14 @@ const router = Router();
 router.use(protect);
 
 // CRUD
-router.post("/create", createProperty);
+const uploadFields = [{ name: "mediaFiles", maxCount: 20 }];
+
+router.post(
+  "/create",
+  createUpload(uploadFields, "properties"),
+  createProperty
+);
+
 router.get("/", getProperties);
 router.get("/:id", getPropertyById);
 router.put("/:id", updateProperty);

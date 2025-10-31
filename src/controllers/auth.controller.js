@@ -26,6 +26,9 @@ const generateRefreshToken = (user) => {
   return jwt.sign({ id: user._id }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 
+const sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
+const secure = process.env.NODE_ENV === "production";
+
 export const register = async (req, res) => {
   try {
     const { fullName, email, password, phone, roles } = req.body;
@@ -252,14 +255,14 @@ export const login = async (req, res) => {
     res
       .cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production",
+        secure,
+        sameSite,
         maxAge: 15 * 60 * 1000, // 15 minutes
       })
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production",
+        secure,
+        sameSite,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       })
       .status(200)
@@ -319,8 +322,8 @@ export const refreshToken = async (req, res) => {
       res
         .cookie("accessToken", newAccessToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // ✅
+          secure,
+          sameSite,
           maxAge: 15 * 60 * 1000, // 15 minutes
         })
         .json({
@@ -342,13 +345,13 @@ export const logout = (req, res) => {
     res
       .clearCookie("accessToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // ✅
+        secure,
+        sameSite,
       })
       .clearCookie("refreshToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // ✅
+        secure,
+        sameSite,
       })
       .json({ message: "Logged out successfully" });
   } catch (err) {

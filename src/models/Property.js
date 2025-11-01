@@ -393,10 +393,11 @@ propertySchema.virtual("fullAddress").get(function () {
 });
 
 // Methods
-propertySchema.methods.incrementViews = function () {
-  this.views = (this.views || 0) + 1;
-  return this.save();
+propertySchema.methods.incrementViews = async function () {
+  this.views += 1;
+  await this.save();
 };
+
 propertySchema.methods.incrementInquiries = function () {
   this.inquiries = (this.inquiries || 0) + 1;
   return this.save();

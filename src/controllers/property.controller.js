@@ -132,24 +132,28 @@ export const getProperties = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
+    // Fetch properties with full nested details
     const [properties, total] = await Promise.all([
       Property.find(filters)
-        .populate("owner", "fullName email phone")
+        .populate("owner", "fullName email phone") // populate owner info
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(Number(limit))
+        .lean(), // return plain JS objects including nested fields
       Property.countDocuments(filters),
     ]);
 
     res.status(200).json({
       success: true,
+      message: "Recent properties fetched successfully",
       total,
       page: Number(page),
       pages: Math.ceil(total / limit),
       data: properties,
     });
   } catch (error) {
-    handleError(res, error, 500);
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -157,21 +161,42 @@ export const getProperties = async (req, res) => {
 export const getPropertyById = async (req, res) => {
   try {
     const { id } = req.params;
+
     const property = await Property.findOne({
-      $or: [{ _id: id }, { slug: id }],
-      isDeleted: false,
+      $or: [{ propertyId: id }, { slug: id }],
     }).populate("owner", "fullName email phone");
 
     if (!property)
-      return res
-        .status(404)
-        .json({ success: false, message: "Property not found" });
+      return res.status(404).json({
+        success: false,
+        code: "not_found",
+        message: "Property not found or unavailable.",
+      });
 
+    if (property.isDeleted)
+      return res.status(410).json({
+        success: false,
+        code: "deleted",
+        message: "This property has been deleted.",
+      });
+
+    if (property.status === "expired" || property.visibility === false)
+      return res.status(403).json({
+        success: false,
+        code: "expired",
+        message: "This listing has expired or is unavailable.",
+      });
+
+    // ✅ Only one save operation
     await property.incrementViews();
 
-    res.status(200).json({ success: true, data: property });
+    res.status(200).json({
+      success: true,
+      code: "ok",
+      data: property,
+    });
   } catch (error) {
-    handleError(res, error, 500);
+    handleError(res, error, 500, "server_error");
   }
 };
 
@@ -392,11 +417,14 @@ export const getRecentProperties = async (req, res) => {
     const { limit = 10 } = req.query;
 
     const properties = await Property.find({ isDeleted: false })
+      .populate("owner", "fullName email phone")
       .sort({ createdAt: -1 })
       .limit(Number(limit))
-      .select(
-        "title slug price listingType propertyType address images createdAt"
-      );
+      .lean(); // returns plain objects with all fields
+
+    // .select(
+    //   "title slug price listingType propertyType address images createdAt"
+    // );
 
     res.status(200).json({
       success: true,

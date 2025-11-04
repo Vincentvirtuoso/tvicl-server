@@ -267,7 +267,6 @@ const propertySchema = new Schema(
             "floorPlan",
             "virtualTour",
             "video",
-            "legal",
             "other",
           ],
           // required: true,

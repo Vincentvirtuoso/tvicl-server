@@ -24,6 +24,7 @@ const PORT = process.env.PORT || 4000;
 const allowedOrigins = [
   "http://localhost:5173",
   "https://propertiesinnigeriatvicl.onrender.com",
+  "https://www.tvicloffice.com",
 ];
 
 app.use((req, res, next) => {

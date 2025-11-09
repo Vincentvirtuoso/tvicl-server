@@ -16,7 +16,7 @@ import {
   getTopSearches,
   getRelatedProperties,
 } from "#controllers/property.controller";
-import { protect } from "#middleware/auth.middleware";
+import { authorize, protect } from "#middleware/auth.middleware";
 import { createUpload } from "#middleware/upload.middleware";
 import { Router } from "express";
 
@@ -30,6 +30,7 @@ const uploadFields = [{ name: "mediaFiles", maxCount: 20 }];
 
 router.post(
   "/create",
+  authorize("admin"),
   createUpload(uploadFields, "properties"),
   createProperty
 );

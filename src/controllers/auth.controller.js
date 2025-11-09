@@ -16,18 +16,20 @@ const { CLIENT_URL = "http://localhost:5173/", NODE_ENV } = process.env;
 
 // Generate access token (15 minutes)
 const generateToken = (user) => {
-  return jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+  return jwt.sign({ id: user._id, role: user.activeRole }, JWT_SECRET, {
     expiresIn: "15m",
   });
 };
 
 // Generate refresh token (7 days)
 const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user._id }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ id: user._id }, JWT_REFRESH_SECRET, {
+    expiresIn: user.roles.includes("admin") ? "1d" : "7d",
+  });
 };
 
-const sameSite = process.env.NODE_ENV === "production" ? "none" : "lax";
 const secure = process.env.NODE_ENV === "production";
+const sameSite = secure ? "none" : "lax";
 
 export const register = async (req, res) => {
   try {
@@ -111,6 +113,133 @@ export const register = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Server error during registration" });
+  }
+};
+
+export const registerAdmin = async (req, res) => {
+  try {
+    const { fullName, email, password, phone } = req.body;
+
+    // Check if an admin already exists
+    const adminExists = await User.findOne({ roles: "admin" });
+    if (adminExists) {
+      return res.status(403).json({ message: "Admin account already exists" });
+    }
+
+    // Hash password and create new admin
+    const user = new User({
+      fullName,
+      email,
+      password,
+      phone,
+      roles: ["admin"],
+      activeRole: "admin",
+      verified: true,
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      message: "Admin account created successfully",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        roles: user.roles,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const login = async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // In login controller:
+    if (role === "admin" && !user.roles.includes("admin")) {
+      return res.status(403).json({ message: "Access denied. Admins only." });
+    }
+
+    // Check if email is verified
+    if (!user.verified) {
+      return res.status(401).json({
+        message: "Please verify your email before logging in",
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
+
+    // Verify password
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Ensure roles and activeRole are defined
+    const roles =
+      Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
+    const activeRole = user.activeRole || roles[0];
+
+    // Generate tokens
+    const accessToken = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Saved properties count
+    const savedPropertiesCount = Array.isArray(user.savedProperties)
+      ? user.savedProperties.length
+      : 0;
+
+    // Send tokens as HTTP-only cookies
+    res
+      .cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure,
+        sameSite,
+        maxAge: 15 * 60 * 1000,
+      })
+      .cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure,
+        sameSite,
+        maxAge: (user.roles.includes("admin") ? 1 : 7) * 24 * 60 * 60 * 1000,
+      })
+      .status(200)
+      .json({
+        message: "Logged in successfully",
+        user: {
+          id: user.roles.includes("admin") ? null : user._id,
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone,
+          roles,
+          activeRole,
+          profilePhoto: user.profilePhoto,
+          verified: user.verified,
+          savedPropertiesCount,
+        },
+      });
+  } catch (err) {
+    console.error("Login error:", err.stack || err);
+    res.status(500).json({ message: "Server error during login" });
   }
 };
 
@@ -204,91 +333,9 @@ export const resendVerificationEmail = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate input
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
-    }
-
-    // Find user
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Check if email is verified
-    if (!user.verified) {
-      return res.status(401).json({
-        message: "Please verify your email before logging in",
-        requiresVerification: true,
-        email: user.email,
-      });
-    }
-
-    // Verify password
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    // Ensure roles and activeRole are defined
-    const roles =
-      Array.isArray(user.roles) && user.roles.length ? user.roles : ["buyer"];
-    const activeRole = user.activeRole || roles[0];
-
-    // Generate tokens
-    const accessToken = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    // Saved properties count
-    const savedPropertiesCount = Array.isArray(user.savedProperties)
-      ? user.savedProperties.length
-      : 0;
-
-    // Send tokens as HTTP-only cookies
-    res
-      .cookie("accessToken", accessToken, {
-        httpOnly: true,
-        secure,
-        sameSite,
-        maxAge: 15 * 60 * 1000, // 15 minutes
-      })
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure,
-        sameSite,
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      })
-      .status(200)
-      .json({
-        message: "Logged in successfully",
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          phone: user.phone,
-          roles,
-          activeRole,
-          profilePhoto: user.profilePhoto,
-          verified: user.verified,
-          savedPropertiesCount,
-        },
-      });
-  } catch (err) {
-    console.error("Login error:", err.stack || err);
-    res.status(500).json({ message: "Server error during login" });
-  }
-};
-
 export const refreshToken = async (req, res) => {
   try {
-    const token = req.cookies.refreshToken;
+    const token = req.cookies.refreshToken || req.headers["x-refresh-token"];
 
     if (!token) {
       return res.status(401).json({ message: "No refresh token provided" });
@@ -689,5 +736,242 @@ export const updateUserRole = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      role,
+      search,
+      verified,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    const filter = {
+      $and: [
+        {
+          $or: [
+            { roles: { $ne: "admin" } },
+            { roles: { $not: { $elemMatch: { $eq: "admin" } } } },
+          ],
+        },
+      ],
+    };
+
+    // Add role filter if provided
+    if (role && role !== "all") {
+      filter.$and.push({ roles: role });
+    }
+
+    // Add search filter if provided
+    if (search) {
+      filter.$and.push({
+        $or: [
+          { fullName: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } },
+        ],
+      });
+    }
+
+    // Add verified filter if provided
+    if (verified !== undefined) {
+      filter.$and.push({ verified: verified === "true" });
+    }
+
+    // Calculate pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort configuration
+    const sortConfig = {};
+    sortConfig[sortBy] = sortOrder === "desc" ? -1 : 1;
+
+    // Get users with pagination and population
+    const users = await User.find(filter)
+      .select(
+        "-password -verificationToken -verificationTokenExpires -resetPasswordToken -resetPasswordExpires"
+      )
+      .populate({
+        path: "rolesData.profile",
+        model: "Agent", // Only populate Agent profiles for now
+        select:
+          "licenseNumber agencyName yearsOfExperience specializations ratings reviewsCount verified",
+      })
+      .populate("savedProperties", "title price images")
+      .sort(sortConfig)
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    // Transform the data to match your desired format
+    const transformedUsers = await Promise.all(
+      users.map(async (user) => {
+        // Find agent profile if user has agent role
+        let agentProfile = null;
+        if (user.roles.includes("agent")) {
+          const agentData = await Agent.findOne({ user: user._id })
+            .select(
+              "licenseNumber agencyName yearsOfExperience specializations ratings reviewsCount verified phone address profilePhoto"
+            )
+            .lean();
+
+          if (agentData) {
+            agentProfile = {
+              licenseNumber: agentData.licenseNumber,
+              agencyName: agentData.agencyName,
+              yearsOfExperience: agentData.yearsOfExperience,
+              specializations: agentData.specializations,
+              ratings: agentData.ratings,
+              reviewsCount: agentData.reviewsCount,
+              verified: agentData.verified,
+              phone: agentData.phone,
+              address: agentData.address,
+              profilePhoto: agentData.profilePhoto,
+            };
+          }
+        }
+
+        // Find estate profile if user has estate role
+        let estateProfile = null;
+        if (user.roles.includes("estate")) {
+          const estateData = await Estate.findOne({ user: user._id })
+            .select(
+              "estateName address contactEmail phone registrationNumber website totalProperties estateLogo verified registrationDocuments"
+            )
+            .lean();
+
+          if (estateData) {
+            estateProfile = {
+              estateName: estateData.estateName,
+              address: estateData.address,
+              contactEmail: estateData.contactEmail,
+              phone: estateData.phone,
+              registrationNumber: estateData.registrationNumber,
+              website: estateData.website,
+              totalProperties: estateData.totalProperties,
+              estateLogo: estateData.estateLogo,
+              verified: estateData.verified,
+            };
+          }
+        }
+
+        // Get last login from agent/estate profile or use user's updatedAt
+        let lastLogin = user.updatedAt;
+        if (agentProfile?.lastLogin) {
+          lastLogin = agentProfile.lastLogin;
+        } else if (estateProfile?.lastLogin) {
+          lastLogin = estateProfile.lastLogin;
+        }
+
+        return {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone,
+          roles: user.roles,
+          activeRole: user.activeRole,
+          profilePhoto: user.profilePhoto,
+          verified: user.verified,
+          createdAt: user.createdAt,
+          lastLogin: lastLogin,
+          savedProperties: user.savedProperties?.map((prop) => prop._id) || [],
+          agentProfile: agentProfile,
+          estateProfile: estateProfile,
+        };
+      })
+    );
+
+    // Get total count for pagination
+    const totalUsers = await User.countDocuments(filter);
+    const totalPages = Math.ceil(totalUsers / limitNum);
+
+    res.status(200).json({
+      success: true,
+      data: transformedUsers,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalUsers,
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1,
+      },
+    });
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users",
+      error: error.message,
+    });
+  }
+};
+
+export const getUserStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments({
+      $or: [
+        { roles: { $ne: "admin" } },
+        { roles: { $not: { $elemMatch: { $eq: "admin" } } } },
+      ],
+    });
+
+    const verifiedUsers = await User.countDocuments({
+      verified: true,
+      $or: [
+        { roles: { $ne: "admin" } },
+        { roles: { $not: { $elemMatch: { $eq: "admin" } } } },
+      ],
+    });
+
+    const roleStats = await User.aggregate([
+      {
+        $match: {
+          $or: [
+            { roles: { $ne: "admin" } },
+            { roles: { $not: { $elemMatch: { $eq: "admin" } } } },
+          ],
+        },
+      },
+      { $unwind: "$roles" },
+      {
+        $group: {
+          _id: "$roles",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const recentUsers = await User.countDocuments({
+      createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // Last 30 days
+      $or: [
+        { roles: { $ne: "admin" } },
+        { roles: { $not: { $elemMatch: { $eq: "admin" } } } },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        verifiedUsers,
+        verificationRate:
+          totalUsers > 0 ? ((verifiedUsers / totalUsers) * 100).toFixed(1) : 0,
+        roleStats,
+        recentUsers,
+      },
+    });
+  } catch (error) {
+    console.error("Get user stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching user statistics",
+      error: error.message,
+    });
   }
 };

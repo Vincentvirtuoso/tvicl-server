@@ -116,6 +116,19 @@ userSchema.pre("save", function (next) {
   next();
 });
 
+userSchema.pre("save", async function (next) {
+  if (this.roles.includes("admin")) {
+    const existingAdmin = await mongoose.model("User").findOne({
+      roles: "admin",
+      _id: { $ne: this._id },
+    });
+    if (existingAdmin) {
+      throw new Error("An admin account already exists");
+    }
+  }
+  next();
+});
+
 const User = mongoose.model("User", userSchema);
 
 export default User;

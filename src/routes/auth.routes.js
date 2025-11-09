@@ -13,12 +13,16 @@ import {
   changePassword,
   updateUserRole,
   addProfile,
+  registerAdmin,
+  getAllUsers,
+  getUserStats,
 } from "#controllers/auth.controller";
 
 import { protect, authorize } from "../middleware/auth.middleware.js";
 import { updateAgentProfile } from "#controllers/agent.controller";
 import { updateEstateProfile } from "#controllers/estate.controller";
 import { createUpload } from "#middleware/upload.middleware";
+import User from "#models/User";
 
 const router = express.Router();
 
@@ -33,6 +37,17 @@ const uploadProfileFiles = createUpload(
 );
 
 router.post("/register", register);
+
+router.post("/register/admin", registerAdmin);
+
+router.get("/admin-exists", async (req, res) => {
+  const admin = await User.findOne({ roles: "admin" });
+  res.json({ exists: !!admin });
+});
+
+router.get("/all-users", protect, authorize("admin"), getAllUsers);
+
+router.get("/users/stats", protect, authorize("admin"), getUserStats);
 
 router.get("/verify-email/:token", verifyEmail);
 

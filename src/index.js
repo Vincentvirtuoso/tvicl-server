@@ -25,9 +25,9 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:5173",
   "https://propertiesinnigeriatvicl.onrender.com",
-  "https://www.tvicl.com.ng",
+  "https://tvicl.com.ng",
   "https://tvicl-official.onrender.com",
-  "https://www.tviclofficial.com",
+  "https://tviclofficial.com",
 ];
 
 // ✅ CORS middleware

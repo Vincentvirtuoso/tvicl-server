@@ -28,8 +28,8 @@ const allowedOrigins = [
   "https://tvicl.com.ng",
   "https://www.tvicl.com.ng",
   "https://tvicl-official.onrender.com",
-  "https://tviclofficial.com",
-  "https://www.tviclofficial.com",
+  "https://tvicloffice.com",
+  "https://www.tvicloffice.com",
 ];
 
 // ✅ Configure Helmet with CORS-friendly settings

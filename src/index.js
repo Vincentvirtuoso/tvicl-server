@@ -26,31 +26,48 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://propertiesinnigeriatvicl.onrender.com",
   "https://tvicl.com.ng",
+  "https://www.tvicl.com.ng",
   "https://tvicl-official.onrender.com",
   "https://tviclofficial.com",
+  "https://www.tviclofficial.com",
 ];
 
-// ✅ CORS middleware
+// ✅ Configure Helmet with CORS-friendly settings
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  })
+);
+
+// ✅ CORS middleware (must be BEFORE other routes)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  
+  // Allow requests from allowed origins
   if (allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
   }
+  
   res.header("Access-Control-Allow-Credentials", "true");
   res.header(
     "Access-Control-Allow-Methods",
-    "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
   );
   res.header(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With"
+    "Content-Type, Authorization, X-Requested-With, Accept"
   );
-  if (req.method === "OPTIONS") return res.sendStatus(204);
+  
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  
   next();
 });
 
 // ✅ Global middlewares
-app.use(helmet());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

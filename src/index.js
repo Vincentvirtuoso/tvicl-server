@@ -27,7 +27,7 @@ const allowedOrigins = [
   "https://propertiesinnigeriatvicl.onrender.com",
   "https://www.tvicl.com.ng",
   "https://tvicl-official.onrender.com",
-  "https://www.tviclofficial.com.ng",
+  "https://www.tviclofficial.com",
 ];
 
 // ✅ CORS middleware
